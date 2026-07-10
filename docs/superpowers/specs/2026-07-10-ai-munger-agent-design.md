@@ -433,4 +433,4 @@ Phase 5: 报告生成
 
 ---
 
-*Design by AI Munger brainstorming session*
+*Design by AI Munger brainstorming session. Inspired by [ai-berkshire](https://github.com/xbtlin/ai-berkshire).*

@@ -2,6 +2,8 @@
 
 以查理·芒格投资哲学为核心的 AI 投资分析助手。用户通过多轮对话与 Agent 交互，Agent 驱动数据工具和分析技能，最终生成交互式 HTML 投资分析报告。
 
+Inspired by [ai-berkshire](https://github.com/xbtlin/ai-berkshire) — 专注芒格一人的投资分析实践。
+
 ## 架构
 
 5 层分层架构：工具层(Python CLI) → 数据层(Skills) → 分析层(Skills) → 编排层(Skill) → 报告层(HTML)
