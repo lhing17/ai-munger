@@ -152,9 +152,7 @@ python tools/industry_data.py <行业名称> --json
 
 **特殊情况:** global-benchmark 返回"不适用"时 → 权重归零，其余 5 维度按 ÷0.9 重分配权重。
 
-**评分计算:** 综合评分 = Σ(维度得分 × 权重) ÷ 10 × 10
-
-综合评分 = Σ(维度得分 × 权重) ÷ 10 × 10
+**评分计算:** 综合评分 = Σ(维度得分 × 权重)
 
 评级映射：
 - 8-10: 强烈推荐
@@ -166,16 +164,48 @@ python tools/industry_data.py <行业名称> --json
 
 收集以下内容并组织为报告生成器需要的格式：
 
-1. **基础信息**: 从 Phase 1 的 quote 数据中提取公司名称、代码、股价、市值
+1. **基础信息**: 从 Phase 1 的数据中提取：
+   - 公司名称、代码（来自 quote）
+   - 当前股价、总市值（来自 quote）
+   - `REPORT_DATE`: 当前日期（格式 YYYY-MM-DD）
+   - `DATA_DATE`: 当前日期（格式 YYYY-MM-DD，标注"数据截至"）
 2. **综合评分**: 按上述公式计算
 3. **一句话结论**: 基于所有分析结果，撰写芒格风格的总结（2-3 句话）
 4. **核心优势/风险**: 从各分析 Skill 中提取
 5. **分析模块 HTML**: 将每个分析 Skill 的输出格式化为 HTML 片段
 6. **图表数据**: 从财务数据中提取 5 年趋势数据（营收/净利润/ROE 数组）
 7. **雷达图数据**: ROE稳定性、盈利能力、财务健康、现金流质量、品牌溢价、护城河综合、安全边际各维度得分
+7b. **买入价格 HTML**: 从 safety-margin 输出中提取三档买入价格（激进/稳健/保守），格式化为 HTML。使用以下结构：
+
+<div class="price-grid">
+  <div class="price-card aggressive">
+    <div class="investor-type">🔥 激进型</div>
+    <div class="margin-note">安全边际 15%</div>
+    <div class="target-price">¥X.XX</div>
+    <div class="method-note">DCF/PE 估值中枢 × 0.85</div>
+  </div>
+  <div class="price-card moderate">
+    <div class="investor-type">⚖️ 稳健型</div>
+    <div class="margin-note">安全边际 30%</div>
+    <div class="target-price">¥Y.YY</div>
+    <div class="method-note">DCF/PE 估值中枢 × 0.70</div>
+  </div>
+  <div class="price-card conservative">
+    <div class="investor-type">🛡️ 保守型</div>
+    <div class="margin-note">安全边际 50%</div>
+    <div class="target-price">¥Z.ZZ</div>
+    <div class="method-note">max(DCF/PE 中枢 × 0.50, 清算价值)</div>
+  </div>
+</div>
+
+如 safety-margin 判定不适用（<4分/数据不足/净利润为负/FCF持续为负），PRICE_RANGE_SECTION 传空字符串 ""。
+
 8. **管理层 HTML**: management-check 输出
 9. **逆向风险 HTML**: inversion-test 输出
-10. **全球对标 HTML**: global-benchmark 输出（不适用时省略）
+10. **全球对标 HTML**: global-benchmark 输出。不适用时传以下 HTML：
+<div style="padding:20px;text-align:center;color:var(--text-secondary);">
+该行业在全球范围内无直接可比上市公司，全球对标不适用。
+</div>
 
 #### Step 5c: 调用报告生成器
 
