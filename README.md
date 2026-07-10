@@ -151,20 +151,33 @@ python tools/industry_data.py 白酒 --json
 ```
 ai-munger/
 ├── tools/                           # Python CLI 数据脚本（零外部依赖）
-├── skills/                          # Claude Code Skills
-│   ├── circle-of-competence.md      # 🎯 Gate 1: 能力圈审查
-│   ├── quality-screen.md            # 🔢 Gate 2: 质量筛选
-│   ├── valuation-gate.md            # 💰 Gate 3: 估值门禁
-│   ├── rejection-report.md          # 🚫 统一拒绝报告
-│   ├── moat-analysis.md             # 🏰 护城河分析
-│   ├── safety-margin.md             # 🛡️ 安全边际
-│   ├── management-check.md          # 👤 管理层审查
-│   ├── inversion-test.md            # 🔍 逆向风险验证
-│   ├── global-benchmark.md          # 🌍 全球对标
-│   ├── munger-orchestrator.md       # 🎯 编排器
-│   ├── report-generator.md          # 📄 报告生成
-│   ├── a-share-data.md              # 📡 A 股数据
-│   └── financial-query.md           # 📡 财务验证
+├── .claude/skills/                  # Claude Code Skills（每个技能一个目录 + SKILL.md）
+│   ├── circle-of-competence/        # 🎯 Gate 1: 能力圈审查
+│   │   └── SKILL.md
+│   ├── quality-screen/              # 🔢 Gate 2: 质量筛选
+│   │   └── SKILL.md
+│   ├── valuation-gate/              # 💰 Gate 3: 估值门禁
+│   │   └── SKILL.md
+│   ├── rejection-report/            # 🚫 统一拒绝报告
+│   │   └── SKILL.md
+│   ├── munger-orchestrator/         # 🎯 编排器
+│   │   └── SKILL.md
+│   ├── moat-analysis/               # 🏰 护城河分析
+│   │   └── SKILL.md
+│   ├── safety-margin/               # 🛡️ 安全边际
+│   │   └── SKILL.md
+│   ├── management-check/            # 👤 管理层审查
+│   │   └── SKILL.md
+│   ├── inversion-test/              # 🔍 逆向风险验证
+│   │   └── SKILL.md
+│   ├── global-benchmark/            # 🌍 全球对标
+│   │   └── SKILL.md
+│   ├── report-generator/            # 📄 报告生成
+│   │   └── SKILL.md
+│   ├── a-share-data/                # 📡 A 股数据
+│   │   └── SKILL.md
+│   └── financial-query/             # 📡 财务验证
+│       └── SKILL.md
 ├── templates/                       # HTML 报告模板
 ├── reports/                         # 生成的报告输出
 ├── docs/                            # 设计文档与分析
