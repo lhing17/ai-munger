@@ -114,7 +114,9 @@ python tools/industry_data.py <行业名称> --json
 **进度提示**：告知用户数据获取状态。
 
 **异常处理**：
-- 某个数据源失败 → 标注 missing，继续流程
+- 某个数据源失败 → 重试 1 次，仍失败后区分原因：
+  - 网络超时/API 限流 → 标记 "data-unavailable-transient"，继续流程（Gate 1 应宽容处理）
+  - 数据源本身不支持该股票（如未上市公司）→ 标记 "data-unavailable-permanent"，继续流程
 - 全部失败 → 告知用户，建议检查股票代码或网络
 
 ---
@@ -312,6 +314,12 @@ python tools/industry_data.py <行业名称> --json
 
 **触发条件：** 仅当三道门禁全部通过（Gate 1 = IN-CIRCLE, Gate 2 = PASS/CAUTION, Gate 3 = REASONABLE/EXPENSIVE）。
 
+注意：管理层评估位于 Phase 3 而非 Gate 层，意味着管理层质量不影响门禁通过/拒绝判定。这是一个已知的架构权衡：
+- 优点：管理层评估依赖 Phase 1 的 personnel_data + WebSearch，数据量大、判断复杂度高，放在深度分析阶段更合理
+- 风险：财务数据完美但管理层有问题的公司（如康美药业类型）会在 Gate 1-3 全部绿灯，直到 Phase 3 才暴露问题
+- 缓解：Gate 1 的"信息真实性信心"维度部分覆盖管理层诚信问题（如关联交易异常、频繁更换审计师等信号），但并非全面评估
+- 未来改进：考虑在 Gate 2 和 Gate 2.5 之间增加一个轻量级管理层预检——仅检查硬性红旗信号（大股东质押>50%、近2年大额减持、3年内更换审计师），不需要完整 management-check
+
 **同时**调用 4 个分析 Skill：
 1. `moat-analysis` — 护城河分析
 2. `safety-margin` — 安全边际评估
@@ -363,6 +371,17 @@ python tools/industry_data.py <行业名称> --json
 - ≥ 6.0 且 < 8.0: 可以买入
 - ≥ 4.0 且 < 6.0: 继续观察
 - < 4.0: 回避
+
+**各分析技能的评分契约：** 综合评分公式假设以下每个 Skill 输出一个 0-10 的数值分。编排器在调用各 Skill 时，应明确要求其返回结构化评分。如果某个 Skill 返回非数值输出（如纯文本），编排器应自行提取或要求 Skill 重新输出包含数值的结果。
+
+| 评分来源 | Skill | 预期输出格式 |
+|---------|-------|------------|
+| 质量筛选 | quality-screen | 0-10 总分（已定义） |
+| 护城河宽度 | moat-analysis | 加权总分 (0-10)，见该 Skill 输出格式 |
+| 安全边际 | safety-margin | 0-10 安全边际分（基于当前价 vs 估值的关系映射） |
+| 管理层质量 | management-check | 0-10 信任分（已定义：信任等级映射到数值） |
+| 逆向风险 | inversion-test | 0-10 逆向安全分（已定义：直接传递） |
+| 全球对标 | global-benchmark | 0-10 对打分（如不适用则不参与计算） |
 
 **Gate 3 标记处理:** 如果 `EXPENSIVE_WARNING = true`，在综合评分中不额外扣分，但在报告的一句话结论中明确提及"当前估值偏高"。
 
