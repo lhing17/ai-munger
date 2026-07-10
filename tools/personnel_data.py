@@ -4,8 +4,11 @@
 为 management-check Skill 提供高管履历、股东结构、质押、分红数据。
 
 用法:
+    python tools/personnel_data.py --json full 600519
     python tools/personnel_data.py full 600519
+    python tools/personnel_data.py --json executives 600519
     python tools/personnel_data.py executives 600519
+    python tools/personnel_data.py --json shareholders 600519
     python tools/personnel_data.py shareholders 600519
 """
 
@@ -281,11 +284,101 @@ def cmd_full(code: str) -> dict:
 # CLI
 # ---------------------------------------------------------------------------
 
+def _print_text(result, command):
+    """Print human-readable text for each subcommand."""
+    code = result.get("code", "?")
+    print("=" * 60)
+    print(f"管理层/股东数据: {code}")
+    print("=" * 60)
+
+    if command == "executives":
+        _print_executives(result)
+    elif command == "shareholders":
+        _print_shareholders(result)
+    elif command == "dividends":
+        _print_dividends(result)
+    elif command == "full":
+        exec_data = result.get("executives", {})
+        own_data = result.get("ownership", {})
+        cap_data = result.get("capital_actions", {})
+        print(f"\n公司: {exec_data.get('company_name', code)}")
+        if exec_data.get("listed"):
+            print(f"上市日期: {exec_data['listed']}")
+        print()
+        _print_executives(exec_data)
+        print()
+        _print_shareholders(own_data)
+        print()
+        _print_dividends(cap_data)
+
+
+def _print_executives(data):
+    """Print executives section."""
+    print("\n--- 高管信息 ---")
+    key_ex = data.get("key_executives", [])
+    if key_ex:
+        for ex in key_ex:
+            print(f"  姓名: {ex.get('name', '-')}")
+            print(f"  职务: {ex.get('title', '-')}")
+            print()
+    ind_dirs = data.get("independent_directors", [])
+    if ind_dirs:
+        print(f"  独立董事: {', '.join(ind_dirs)}")
+    if data.get("founded"):
+        print(f"  成立日期: {data['founded']}")
+    if data.get("listed"):
+        print(f"  上市日期: {data['listed']}")
+
+
+def _print_shareholders(data):
+    """Print shareholders section."""
+    print("\n--- 股东信息 ---")
+    real_ctrl = data.get("real_controller", "")
+    ctrl_holder = data.get("controlling_shareholder", "")
+    ctrl_stake = data.get("controlling_shareholder_stake", "")
+    if real_ctrl:
+        print(f"  实际控制人: {real_ctrl}")
+    if ctrl_holder:
+        stake_str = f" ({ctrl_stake})" if ctrl_stake else ""
+        print(f"  控股股东: {ctrl_holder}{stake_str}")
+    pledge = data.get("pledge_assessment", "")
+    if pledge:
+        print(f"  大股东质押风险: {pledge}")
+    print()
+    top10 = data.get("top10_shareholders", [])
+    if top10:
+        print("  前十大股东:")
+        for h in top10:
+            pct = f" ({h['stake_pct']}%)" if h.get("stake_pct") is not None else ""
+            print(f"  {h.get('rank', '?')}. {h.get('name', '-')}{pct}")
+
+
+def _print_dividends(data):
+    """Print dividends section."""
+    print("\n--- 资本运作 ---")
+    dividends = data.get("dividend_history", [])
+    if dividends:
+        print("  近5年分红:")
+        for d in dividends:
+            year = d.get("year", "?")
+            dps = d.get("dividend_per_share", "-")
+            plan = d.get("plan", "")
+            extra = f" -- {plan}" if plan else ""
+            print(f"  {year}: {dps}元/股{extra}")
+    dilution = data.get("total_shares_dilution_pct_annual")
+    assessment = data.get("dilution_assessment", "")
+    if dilution is not None:
+        print(f"  股本稀释率: {dilution}%/年")
+    if assessment:
+        print(f"  评估: {assessment}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="A股管理层/股东/分红数据工具 -- 东方财富API，零外部依赖",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser.add_argument("--json", action="store_true", help="输出 JSON 格式")
     sub = parser.add_subparsers(dest="command")
 
     p_exe = sub.add_parser("executives", help="高管信息（董事长/总经理/董秘/独董）")
@@ -313,7 +406,11 @@ def main():
     }
 
     result = cmds[args.command]()
-    print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+    else:
+        _print_text(result, args.command)
 
 
 if __name__ == "__main__":

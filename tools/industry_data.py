@@ -4,8 +4,10 @@
 为 moat-analysis 和 quality-screen 提供行业基准数据。
 
 用法:
-    python tools/industry_data.py 白酒 --json
-    python tools/industry_data.py search 新能源 --json
+    python tools/industry_data.py --json industry 白酒
+    python tools/industry_data.py industry 白酒
+    python tools/industry_data.py --json search 新能源
+    python tools/industry_data.py search 新能源
 """
 
 import argparse
@@ -252,11 +254,70 @@ def cmd_industry(name: str) -> dict:
     }
 
 
+def _print_search_text(result):
+    """Print human-readable search results."""
+    if not result:
+        print("未找到匹配的行业。")
+        return
+    print(f"找到 {len(result)} 个行业:")
+    for item in result:
+        print(f"  {item['code']}  {item['name']}")
+
+
+def _print_industry_text(result):
+    """Print human-readable industry data."""
+    industry_name = result.get("industry", "?")
+    board_code = result.get("board_code", "")
+    count = result.get("company_count", 0)
+    print("=" * 60)
+    print(f"行业数据: {industry_name} ({board_code})")
+    print("=" * 60)
+    print(f"公司数量: {count}")
+    print()
+
+    # Industry averages
+    avgs = result.get("averages", {})
+    if avgs:
+        print("--- 行业均值 ---")
+        labels = [
+            ("roe", "ROE", "%"),
+            ("gross_margin", "毛利率", "%"),
+            ("net_margin", "净利率", "%"),
+            ("pe", "PE", ""),
+            ("debt_ratio", "资产负债率", "%"),
+            ("revenue_growth_3y", "营收增长率(3Y)", "%"),
+        ]
+        for key, label, unit in labels:
+            val = avgs.get(key)
+            if val is not None:
+                print(f"  {label}: {val}{unit}")
+        print()
+
+    # Top by market cap
+    top_cap = result.get("top_by_market_cap", [])
+    if top_cap:
+        n = min(5, len(top_cap))
+        print(f"--- 市值排名 (前{n}) ---")
+        for i, item in enumerate(top_cap[:n], 1):
+            print(f"  {i}. {item['code']} {item['name']} {item['market_cap_yi']:.0f}亿")
+        print()
+
+    # Top by ROE
+    top_roe = result.get("top_by_roe", [])
+    if top_roe:
+        n = min(5, len(top_roe))
+        print(f"--- ROE排名 (前{n}) ---")
+        for i, item in enumerate(top_roe[:n], 1):
+            print(f"  {i}. {item['code']} {item['name']} {item['roe']}%")
+        print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="A股行业数据工具 — 内置50+行业板块映射",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser.add_argument("--json", action="store_true", help="输出 JSON 格式")
     sub = parser.add_subparsers(dest="command")
 
     p_ind = sub.add_parser("industry", help="行业概况")
@@ -279,7 +340,17 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+    if isinstance(result, dict) and "error" in result:
+        print(f"[ERROR] {result['error']}")
+        sys.exit(1)
+
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+    else:
+        if args.command == "search":
+            _print_search_text(result)
+        elif args.command == "industry":
+            _print_industry_text(result)
 
 
 if __name__ == "__main__":

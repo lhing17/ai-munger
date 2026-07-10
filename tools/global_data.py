@@ -27,12 +27,12 @@ def _safe_num(val):
             return None
         return round(f, 2)
     except (ValueError, TypeError):
-        return str(val)
+        return None
 
 
 def _cagr(values, years=3):
     """计算 CAGR。"""
-    valid = [v for v in values if v is not None and v > 0]
+    valid = [v for v in values if v is not None and isinstance(v, (int, float)) and v > 0]
     if len(valid) < years + 1:
         return None
     start, end = valid[0], valid[-1]
@@ -89,24 +89,24 @@ def get_financials(ticker):
         equity = _extract(bs, ["Total Equity Gross Minority Interest", "Stockholders Equity"])
         roe = []
         for ni, eq in zip(net_income, equity):
-            if ni and eq and eq != 0:
+            if ni is not None and eq is not None and eq != 0:
                 roe.append(round(ni / eq * 100, 2))
             else:
                 roe.append(None)
 
         gross_margin = []
         for gp, rev in zip(gross_profit, revenue):
-            if gp and rev and rev != 0:
+            if gp is not None and rev is not None and rev != 0:
                 gross_margin.append(round(gp / rev * 100, 2))
             else:
                 gross_margin.append(None)
 
         r_and_d_pct = []
         for rd, rev in zip(r_and_d, revenue):
-            if rd and rev and rev != 0:
+            if rd is not None and rev is not None and rev != 0:
                 r_and_d_pct.append(round(rd / rev * 100, 2))
             else:
-                r_and_d_pct.append(0.0)
+                r_and_d_pct.append(None)
 
         rev_cagr_3 = _cagr(revenue, 3)
         rev_cagr_5 = _cagr(revenue, 5)
