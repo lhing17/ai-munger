@@ -1,6 +1,6 @@
 ---
 name: rejection-report
-description: 芒格拒绝报告生成器 — 统一处理三种门禁拒绝（TOO-HARD/NOT-QUALITY/TOO-EXPENSIVE），产出芒格风格的有价值拒绝输出
+description: 芒格拒绝报告生成器 — 统一处理四种门禁拒绝（TOO-HARD/RESTRICTED/NOT-QUALITY/TOO-EXPENSIVE），产出芒格风格的有价值拒绝输出
 ---
 
 # 芒格拒绝报告生成器
