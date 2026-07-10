@@ -365,6 +365,7 @@ python tools/industry_data.py <行业名称> --json
 **特殊情况:** global-benchmark 返回"不适用"时 → 权重归零，其余 5 维度按 ÷0.9 重分配权重。
 
 **评分计算:** 综合评分 = Σ(维度得分 × 权重)
+注：safety-margin 的维度得分需从文字判定映射，见下方评分契约表。
 
 评级映射：
 - ≥ 8.0: 强烈推荐
@@ -378,10 +379,12 @@ python tools/industry_data.py <行业名称> --json
 |---------|-------|------------|
 | 质量筛选 | quality-screen | 0-10 总分（已定义） |
 | 护城河宽度 | moat-analysis | 加权总分 (0-10)，见该 Skill 输出格式 |
-| 安全边际 | safety-margin | 0-10 安全边际分（基于当前价 vs 估值的关系映射） |
+| 安全边际 | safety-margin | 编排器提取：从 safety-margin 输出的综合判断文字映射为数值 — "充足"→9分,"一般"→6分,"不足"→3分,"不存在"→1分,数据不足无法评估→5分(中性) |
 | 管理层质量 | management-check | 0-10 信任分（已定义：信任等级映射到数值） |
 | 逆向风险 | inversion-test | 0-10 逆向安全分（已定义：直接传递） |
 | 全球对标 | global-benchmark | 0-10 对打分（如不适用则不参与计算） |
+
+**编排器的提取责任：** quality-screen 和 management-check 和 inversion-test 已原生输出 0-10 分，可直接使用。moat-analysis 和 global-benchmark 输出加权总分，可直接使用。**safety-margin 例外**——编排器需从其输出的"综合判断"段落中提取安全边际水平文字（充足/一般/不足/不存在），并按上述映射转换为 0-10 数值后再代入加权公式。
 
 **Gate 3 标记处理:** 如果 `EXPENSIVE_WARNING = true`，在综合评分中不额外扣分，但在报告的一句话结论中明确提及"当前估值偏高"。
 
