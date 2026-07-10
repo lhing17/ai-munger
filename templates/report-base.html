@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{STOCK_NAME}} ({{STOCK_CODE}}) — 芒格投资分析报告</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text-secondary: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --yellow: #d2991d;
+    --red: #f85149;
+    --purple: #a371f7;
+    --sidebar-width: 220px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  nav#sidebar {
+    width: var(--sidebar-width);
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    overflow-y: auto;
+    z-index: 100;
+  }
+
+  nav#sidebar .logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  nav#sidebar .logo h2 { font-size: 16px; color: var(--text); }
+  nav#sidebar .logo span { font-size: 11px; color: var(--text-secondary); }
+
+  nav#sidebar a {
+    display: block;
+    padding: 8px 20px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+  }
+
+  nav#sidebar a:hover,
+  nav#sidebar a.active {
+    color: var(--text);
+    background: rgba(88, 166, 255, 0.08);
+    border-left-color: var(--accent);
+  }
+
+  main {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    padding: 32px 40px;
+    max-width: 960px;
+  }
+
+  .section {
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section:last-child { border-bottom: none; }
+
+  .section h2 { font-size: 22px; margin-bottom: 4px; color: var(--text); }
+  .section .subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .summary-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+
+  .summary-card .label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .summary-card .value {
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  .summary-card .value.green { color: var(--green); }
+  .summary-card .value.yellow { color: var(--yellow); }
+  .summary-card .value.red { color: var(--red); }
+
+  .score-bar-container {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .score-bar-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+
+  .score-bar {
+    height: 12px;
+    border-radius: 6px;
+    background: var(--border);
+    overflow: hidden;
+  }
+
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.6s ease;
+  }
+
+  .score-zones {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  .score-zones span { flex: 1; text-align: center; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+
+  th, td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+
+  tr:hover td { background: rgba(88, 166, 255, 0.04); }
+
+  details {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  details summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--accent);
+    list-style: none;
+  }
+
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before { content: '▸ '; display: inline-block; transition: transform 0.2s; }
+  details[open] summary::before { content: '▾ '; }
+
+  details .detail-content {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .price-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin: 16px 0;
+  }
+
+  .price-card {
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .price-card.aggressive {
+    background: linear-gradient(135deg, #3a1c1c, #5c2020);
+    border: 1px solid var(--red);
+  }
+
+  .price-card.moderate {
+    background: linear-gradient(135deg, #3a3010, #5c4a18);
+    border: 1px solid var(--yellow);
+  }
+
+  .price-card.conservative {
+    background: linear-gradient(135deg, #0d3320, #134a2e);
+    border: 1px solid var(--green);
+  }
+
+  .price-card .investor-type {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .price-card.aggressive .investor-type { color: #ff6b6b; }
+  .price-card.moderate .investor-type { color: #ffd700; }
+  .price-card.conservative .investor-type { color: #3fb950; }
+
+  .price-card .margin-note {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+
+  .price-card .target-price {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 8px 0;
+  }
+
+  .price-card .method-note {
+    font-size: 10px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  .chart-container {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 16px 0;
+  }
+
+  .chart-container canvas { max-height: 320px; }
+
+  footer {
+    margin-top: 48px;
+    padding: 24px 0;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.8;
+  }
+
+  footer .disclaimer {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .badge.pass { background: rgba(63, 185, 80, 0.15); color: var(--green); }
+  .badge.fail { background: rgba(248, 81, 73, 0.15); color: var(--red); }
+  .badge.caution { background: rgba(210, 153, 29, 0.15); color: var(--yellow); }
+
+  @media (max-width: 768px) {
+    nav#sidebar { display: none; }
+    main { margin-left: 0; padding: 16px; }
+    .price-grid { grid-template-columns: 1fr; }
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <div class="logo">
+    <h2>🧠 AI Munger</h2>
+    <span>查理芒格投资分析</span>
+  </div>
+  <a href="#summary" class="active">📋 投资摘要</a>
+  <a href="#quality">🔢 质量筛选</a>
+  <a href="#moat">🏰 护城河分析</a>
+  <a href="#safety">🛡️ 安全边际</a>
+  <a href="#charts">📈 关键图表</a>
+</nav>
+
+<main>
+
+  <section id="summary" class="section">
+    <h2>📋 投资摘要</h2>
+    <p class="subtitle">{{REPORT_DATE}} · 数据截至 {{DATA_DATE}}</p>
+
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="label">综合评分</div>
+        <div class="value {{SCORE_COLOR}}">{{OVERALL_SCORE}} / 10</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">评级</div>
+        <div class="value {{RATING_COLOR}}">{{RATING}}</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">当前股价</div>
+        <div class="value">¥{{CURRENT_PRICE}}</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">总市值</div>
+        <div class="value">{{MARKET_CAP}}</div>
+      </div>
+    </div>
+
+    <div class="score-bar-container">
+      <div class="score-bar-label">
+        <span>质量 · 护城河 · 安全边际 · 综合评估</span>
+        <span>{{OVERALL_SCORE}}/10</span>
+      </div>
+      <div class="score-bar">
+        <div class="score-bar-fill" style="width: {{SCORE_PERCENT}}%; background: {{SCORE_COLOR_HEX}};"></div>
+      </div>
+      <div class="score-zones">
+        <span style="color: var(--red);">回避 0-4</span>
+        <span style="color: var(--yellow);">观察 4-6</span>
+        <span style="color: var(--green);">买入 6-8</span>
+        <span style="color: #00ff88;">强烈推荐 8-10</span>
+      </div>
+    </div>
+
+    <div class="summary-card" style="margin-top: 16px;">
+      <div class="label">一句话结论</div>
+      <div style="font-size: 15px; margin-top: 8px;">{{ONE_LINER}}</div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+      <div class="summary-card">
+        <div class="label">🟢 核心优势</div>
+        <div style="font-size: 13px; margin-top: 8px;">{{CORE_STRENGTHS}}</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">🔴 核心风险</div>
+        <div style="font-size: 13px; margin-top: 8px;">{{CORE_RISKS}}</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="quality" class="section">
+    <h2>🔢 质量筛选</h2>
+    <p class="subtitle">7 指标量化去劣 — "买好公司的第一步是排除烂公司"</p>
+    {{QUALITY_SCREEN_CONTENT}}
+  </section>
+
+  <section id="moat" class="section">
+    <h2>🏰 护城河分析</h2>
+    <p class="subtitle">5 维度评估企业竞争优势 — "伟大的公司都有宽阔的护城河"</p>
+    {{MOAT_ANALYSIS_CONTENT}}
+  </section>
+
+  <section id="safety" class="section">
+    <h2>🛡️ 安全边际</h2>
+    <p class="subtitle">DCF + PE + 清算价值三法估值 — "以合理价格买伟大公司"</p>
+    {{SAFETY_MARGIN_CONTENT}}
+    {{PRICE_RANGE_SECTION}}
+  </section>
+
+  <section id="charts" class="section">
+    <h2>📈 关键图表</h2>
+    <div class="chart-container">
+      <h3 style="font-size: 14px; margin-bottom: 12px;">关键指标 5 年趋势</h3>
+      <canvas id="trendChart"></canvas>
+    </div>
+    <div class="chart-container">
+      <h3 style="font-size: 14px; margin-bottom: 12px;">质量维度雷达图</h3>
+      <canvas id="radarChart"></canvas>
+    </div>
+  </section>
+
+  <footer>
+    <div class="disclaimer">
+      <strong>⚠️ 免责声明</strong><br>
+      本报告由 AI 基于公开数据自动生成，不构成投资建议。所有分析结论基于查理芒格的投资哲学框架，仅为信息参考。投资有风险，入市需谨慎。任何投资决策应由您独立判断并自行承担风险。
+    </div>
+    <p>数据来源: 腾讯行情 (qt.gtimg.cn) · 东方财富 (eastmoney.com) | 分析框架: 查理·芒格价值投资哲学</p>
+    <p>生成时间: {{REPORT_DATE}} | AI Munger v1.0</p>
+  </footer>
+
+</main>
+
+<script>
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+new Chart(trendCtx, {
+  type: 'line',
+  data: {
+    labels: {{TREND_YEARS}},
+    datasets: [
+      {
+        label: '营收 (亿)',
+        data: {{TREND_REVENUE}},
+        borderColor: '#58a6ff',
+        backgroundColor: 'rgba(88, 166, 255, 0.1)',
+        tension: 0.3,
+        fill: true
+      },
+      {
+        label: '净利润 (亿)',
+        data: {{TREND_PROFIT}},
+        borderColor: '#3fb950',
+        backgroundColor: 'rgba(63, 185, 80, 0.1)',
+        tension: 0.3,
+        fill: true
+      },
+      {
+        label: 'ROE (%)',
+        data: {{TREND_ROE}},
+        borderColor: '#d2991d',
+        backgroundColor: 'rgba(210, 153, 29, 0.1)',
+        tension: 0.3,
+        fill: true,
+        yAxisID: 'y1'
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+      legend: { labels: { color: '#8b949e', usePointStyle: true, padding: 20 } }
+    },
+    scales: {
+      x: { ticks: { color: '#8b949e' }, grid: { color: 'rgba(48, 54, 61, 0.5)' } },
+      y: {
+        type: 'linear', display: true, position: 'left',
+        title: { display: true, text: '金额 (亿)', color: '#8b949e' },
+        ticks: { color: '#8b949e' },
+        grid: { color: 'rgba(48, 54, 61, 0.5)' }
+      },
+      y1: {
+        type: 'linear', display: true, position: 'right',
+        title: { display: true, text: 'ROE (%)', color: '#8b949e' },
+        ticks: { color: '#8b949e' },
+        grid: { drawOnChartArea: false }
+      }
+    }
+  }
+});
+
+const radarCtx = document.getElementById('radarChart').getContext('2d');
+new Chart(radarCtx, {
+  type: 'radar',
+  data: {
+    labels: {{RADAR_LABELS}},
+    datasets: [{
+      label: '{{STOCK_NAME}}',
+      data: {{RADAR_DATA}},
+      backgroundColor: 'rgba(88, 166, 255, 0.2)',
+      borderColor: '#58a6ff',
+      borderWidth: 2,
+      pointBackgroundColor: '#58a6ff'
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      r: {
+        min: 0, max: 10,
+        ticks: { stepSize: 2, color: '#8b949e', backdropColor: 'transparent' },
+        grid: { color: 'rgba(48, 54, 61, 0.8)' },
+        angleLines: { color: 'rgba(48, 54, 61, 0.8)' },
+        pointLabels: { color: '#c9d1d9', font: { size: 12 } }
+      }
+    },
+    plugins: { legend: { display: false } }
+  }
+});
+
+document.querySelectorAll('nav#sidebar a').forEach(link => {
+  link.addEventListener('click', function() {
+    document.querySelectorAll('nav#sidebar a').forEach(l => l.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+window.addEventListener('scroll', function() {
+  const sections = document.querySelectorAll('main .section');
+  const links = document.querySelectorAll('nav#sidebar a');
+  let current = '';
+  sections.forEach(section => {
+    const top = section.offsetTop - 80;
+    if (window.scrollY >= top) current = section.getAttribute('id');
+  });
+  links.forEach(link => {
+    link.classList.remove('active');
+    if (link.getAttribute('href') === '#' + current) link.classList.add('active');
+  });
+});
+
+window.addEventListener('beforeprint', function() {
+  document.querySelectorAll('details').forEach(d => d.setAttribute('open', ''));
+});
+</script>
+
+</body>
+</html>

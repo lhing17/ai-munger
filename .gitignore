@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Generated reports — 投资报告不入库（含大量动态数据，每次重新生成即可）
+reports/*.html
+
+# Brainstorming & local cache — 设计过程临时文件
+.superpowers/
+
+# Environment / secrets
+.env
+.env.local
+*.secret
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
