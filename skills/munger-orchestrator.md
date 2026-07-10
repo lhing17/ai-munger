@@ -39,7 +39,39 @@ description: 查理芒格投资分析编排器 — 混合模式对话管理、5 
 
 **行为**: 启动完整的 5 阶段工作流。
 
-## 5 阶段分析工作流
+## 工作流总览：5 阶段 + 3 门禁
+
+```
+Phase 0: 意图识别
+   ↓
+Phase 1: 数据收集（5 路并行）
+   ↓
+Phase 1.5: Gate 1 — 能力圈审查 ← NEW
+   ├── TOO-HARD → 拒绝路径 → 终止
+   ├── RESTRICTED → 标记，继续 Gate 2 → 拒绝路径
+   └── IN-CIRCLE → 继续
+   ↓
+Phase 2: Gate 2 — 质量筛选
+   ├── FAIL (+ IN-CIRCLE) → 拒绝路径 → 终止
+   ├── FAIL (+ RESTRICTED) → 拒绝路径 → 终止
+   ├── PASS/CAUTION (+ RESTRICTED) → 拒绝路径（受限报告）→ 终止
+   └── PASS/CAUTION (+ IN-CIRCLE) → 继续
+   ↓
+Phase 2.5: Gate 3 — 估值门禁 ← NEW
+   ├── ABSURD → 拒绝路径 → 终止
+   ├── EXPENSIVE → 继续（带警告标记）
+   └── REASONABLE → 继续
+   ↓
+Phase 3: 四路并行分析（护城河+安全边际+管理层+逆向风险）
+   ↓
+Phase 4: 全球龙头对标（按需触发）
+   ↓
+Phase 5: 综合评分 + HTML 报告生成
+```
+
+**目标：60-80% 的分析请求在 1 分钟内完成拒绝。仅 20-40% 的标的进入 Phase 3-5 深度分析。**
+
+---
 
 ### Phase 0: 意图识别
 
@@ -51,14 +83,13 @@ description: 查理芒格投资分析编排器 — 混合模式对话管理、5 
 ```
 🔍 **开始分析 <股票名称> (<股票代码>)**
 
-我将按照查理芒格的分析框架，分以下步骤进行：
-1. 📡 收集数据（行情+财务+估值+管理层+行业）
-2. 🔢 质量筛选（7 指标去劣）
-3. 🧠 四路分析（护城河 + 安全边际 + 管理层 + 逆向验证）
-4. 🌍 全球龙头对标
-5. 📊 生成投资报告
+我将按照查理芒格的分析框架进行：
+1. 📡 收集数据
+2. 🎯 能力圈审查 → 质量筛选 → 估值合理性判断
+3. 🧠 深度分析（仅通过三道门禁的标的）
+4. 📊 生成报告
 
-预计需要 3-5 分钟...
+大多数标的会在第 2 步被拒绝——这是芒格会做的事。
 ```
 
 ### Phase 1: 数据收集（并行）
@@ -88,35 +119,196 @@ python tools/industry_data.py <行业名称> --json
 - 某个数据源失败 → 标注 missing，继续流程
 - 全部失败 → 告知用户，建议检查股票代码或网络
 
-### Phase 2: 质量筛选（串行 — 把关第一步）
+---
 
-调用 `quality-screen` Skill，将 Phase 1 获取的数据传递给该 Skill 进行分析。
+### Phase 1.5: Gate 1 — 能力圈审查 ← NEW
 
-**分支处理**：
-- ✅ PASS → 继续 Phase 3
-- ⚠️ CAUTION → 继续 Phase 3，但提醒用户风险
-- ❌ FAIL → **终止流程**
+这是系统最重要的决策点。在数据收集完成后，首先回答芒格的第一问：**"我懂这个生意吗？"**
 
-如果 FAIL:
+#### Step 1.5a: 调用能力圈 Skill
+
+调用 `circle-of-competence` Skill，传递：
+- Phase 1 全部数据收集结果
+- 行业分类（从主营业务描述推断或 WebSearch 确认）
+- 上市时间、审计信息
+- 数据收集完整性状态
+
+#### Step 1.5b: 根据判定分支
+
+**情况 A: TOO-HARD — 直接拒绝**
+
 ```
-🚫 **质量筛选未通过**
+🚫 **能力圈审查: TOO-HARD**
 
-<股票名称> 在 [具体不通过的指标] 方面不符合芒格的一流公司标准。
+<股票名称> 超出了我们的分析能力范围。
 
-按照芒格的原则："我们宁愿错过十个好机会，也不在一个烂机会上浪费时间。"
+[展示 circle-of-competence 的判定依据]
 
-如果你仍然想深入了解这家公司，我可以继续分析，但请知悉：这家公司不符合基本质量门槛。
+正在生成拒绝报告...
 ```
+
+调用 `rejection-report` Skill，传递：
+- `REJECTION_TYPE`: `TOO-HARD`
+- `STOCK_NAME`, `STOCK_CODE`
+- `GATE_DATA`: circle-of-competence 的完整输出
+- `KNOWN_INFO`: Phase 1 数据摘要
+
+展示拒绝报告。**流程终止。**
+
+**情况 B: RESTRICTED — 受限分析**
+
+```
+⚠️ **能力圈审查: RESTRICTED**
+
+<股票名称> 在某些关键维度上信息不足，我们的分析将受到限制。
+
+[展示受限的维度]
+
+先完成质量筛查以收集更多数据，然后将产出受限报告。
+```
+
+设置内部标记 `GATE1_VERDICT = RESTRICTED`。
+**继续执行 Gate 2**（用于收集数据丰富拒绝报告），但无论 Gate 2 结果如何，最终都走拒绝路径。
+
+**情况 C: IN-CIRCLE — 通过**
+
+```
+✅ **能力圈审查: 通过** (可分析性评分: X.X/10)
+
+这家公司在我们的能力圈范围内。继续质量筛选...
+```
+
+设置内部标记 `GATE1_VERDICT = IN-CIRCLE`。
+继续执行 Gate 2。
+
+---
+
+### Phase 2: Gate 2 — 质量筛选
+
+调用 `quality-screen` Skill，传递 Phase 1 数据 + Gate 1 判定结果。
+
+#### 矩阵判断逻辑
+
+结合 Gate 1 和 Gate 2 的判定结果，使用以下矩阵：
+
+| | Gate 1 = IN-CIRCLE | Gate 1 = RESTRICTED |
+|---|---|---|
+| **Gate 2 = PASS** | ✅ → Gate 3 | ⚠️ 受限报告 |
+| **Gate 2 = CAUTION** | ✅ → Gate 3 (标注风险) | ⚠️ 受限报告 |
+| **Gate 2 = FAIL** | 🚫 质量拒绝 | 🚫 质量拒绝 (含能力圈警告) |
+
+#### 各分支处理
+
+**分支 1: IN-CIRCLE + PASS/CAUTION → 继续 Gate 3**
+
+```
+✅ **质量筛选: PASS/CAUTION** (总分: X.X/10)
+
+继续估值合理性判断...
+```
+
+**分支 2: IN-CIRCLE + FAIL → 质量拒绝**
+
+```
+🚫 **质量筛选: FAIL** (总分: X.X/10)
+
+<股票名称> 不符合芒格的一流公司标准。
+
+正在生成拒绝报告...
+```
+
+调用 `rejection-report` Skill：
+- `REJECTION_TYPE`: `NOT-QUALITY`
+- `GATE_DATA`: quality-screen 完整输出
+- `KNOWN_INFO`: Phase 1 数据摘要
+
+展示拒绝报告。**流程终止。** 不提供"继续分析"的选项——质量 FAIL 的公司不值得花时间。
+
+**分支 3: RESTRICTED + 任何 Gate 2 结果 → 受限报告**
+
+```
+⚠️ **受限分析**
+
+<股票名称> 的分析受到信息限制。以下是我们能提供的全部内容...
+```
+
+调用 `rejection-report` Skill：
+- `REJECTION_TYPE`: `RESTRICTED`
+- `GATE_DATA`: circle-of-competence 输出
+- `ADDITIONAL_GATE_DATA`: quality-screen 输出
+- `KNOWN_INFO`: Phase 1 数据摘要
+
+展示受限报告。**流程终止。**
+
+---
+
+### Phase 2.5: Gate 3 — 估值门禁 ← NEW
+
+**触发条件：** 仅当 Gate 1 = IN-CIRCLE 且 Gate 2 = PASS 或 CAUTION。
+
+从 Phase 1 数据中提取：
+- 当前 PE(TTM)、PB
+- 近 5 年 PE 中位数（valuation 数据）
+- 行业平均 PE（如有）
+- quality-screen 的 ROE 和毛利率数据
+
+调用 `valuation-gate` Skill，传递以上数据。
+
+#### 分支处理
+
+**情况 A: ABSURD — 估值离谱**
+
+```
+💰 **估值门禁: 价格离谱**
+
+<股票名称> 当前价格完全脱离了合理范围。
+
+正在生成拒绝报告...
+```
+
+调用 `rejection-report` Skill：
+- `REJECTION_TYPE`: `TOO-EXPENSIVE`
+- `GATE_DATA`: valuation-gate 完整输出
+- `KNOWN_INFO`: Phase 1 数据摘要
+
+展示拒绝报告。**流程终止。**
+
+**情况 B: EXPENSIVE — 偏贵但允许继续**
+
+```
+⚠️ **估值门禁: 价格偏高**
+
+当前 PE 显著高于历史中位数。继续分析，但将在报告中标注估值风险。
+```
+
+设置标记 `EXPENSIVE_WARNING = true`。
+继续 Phase 3。
+
+**情况 C: REASONABLE — 价格合理**
+
+```
+✅ **估值门禁: 价格合理**
+
+当前估值在历史可比范围内。继续深度分析...
+```
+
+继续 Phase 3。
+
+---
 
 ### Phase 3: 并行分析
+
+**触发条件：** 仅当三道门禁全部通过（Gate 1 = IN-CIRCLE, Gate 2 = PASS/CAUTION, Gate 3 = REASONABLE/EXPENSIVE）。
 
 **同时**调用 4 个分析 Skill：
 1. `moat-analysis` — 护城河分析
 2. `safety-margin` — 安全边际评估
-3. `management-check` — 管理层审查（新）
-4. `inversion-test` — 逆向风险验证（新）
+3. `management-check` — 管理层审查
+4. `inversion-test` — 逆向风险验证
 
 将 Phase 1-2 的数据和结论传递给这 4 个 Skill。moat-analysis 可使用 industry_data 的行业均值做对标。
+
+如果 `EXPENSIVE_WARNING = true`，额外传递提示："当前估值偏高，请在安全边际评估中重点考虑估值风险。"
 
 ### Phase 4: 全球对标（按需触发）
 
@@ -160,66 +352,54 @@ python tools/industry_data.py <行业名称> --json
 - 4-6: 继续观察
 - < 4: 回避
 
+**Gate 3 标记处理:** 如果 `EXPENSIVE_WARNING = true`，在综合评分中不额外扣分，但在报告的一句话结论中明确提及"当前估值偏高"。
+
 #### Step 5b: 汇总所有输出
 
 收集以下内容并组织为报告生成器需要的格式：
 
-1. **基础信息**: 从 Phase 1 的数据中提取：
-   - 公司名称、代码（来自 quote）
-   - 当前股价、总市值（来自 quote）
-   - `REPORT_DATE`: 当前日期（格式 YYYY-MM-DD）
-   - `DATA_DATE`: 当前日期（格式 YYYY-MM-DD，标注"数据截至"）
+1. **基础信息**: 从 Phase 1 的数据中提取：公司名称、代码、当前股价、总市值、报告日期
 2. **综合评分**: 按上述公式计算
 3. **一句话结论**: 基于所有分析结果，撰写芒格风格的总结（2-3 句话）
 4. **核心优势/风险**: 从各分析 Skill 中提取
 5. **分析模块 HTML**: 将每个分析 Skill 的输出格式化为 HTML 片段
 6. **图表数据**: 从财务数据中提取 5 年趋势数据（营收/净利润/ROE 数组）
-7. **雷达图数据**: ROE稳定性、盈利能力、财务健康、现金流质量、品牌溢价、护城河综合、安全边际各维度得分
-7b. **买入价格 HTML**: 从 safety-margin 输出中提取三档买入价格（激进/稳健/保守），格式化为 HTML。使用以下结构：
-
-<div class="price-grid">
-  <div class="price-card aggressive">
-    <div class="investor-type">🔥 激进型</div>
-    <div class="margin-note">安全边际 15%</div>
-    <div class="target-price">¥X.XX</div>
-    <div class="method-note">DCF/PE 估值中枢 × 0.85</div>
-  </div>
-  <div class="price-card moderate">
-    <div class="investor-type">⚖️ 稳健型</div>
-    <div class="margin-note">安全边际 30%</div>
-    <div class="target-price">¥Y.YY</div>
-    <div class="method-note">DCF/PE 估值中枢 × 0.70</div>
-  </div>
-  <div class="price-card conservative">
-    <div class="investor-type">🛡️ 保守型</div>
-    <div class="margin-note">安全边际 50%</div>
-    <div class="target-price">¥Z.ZZ</div>
-    <div class="method-note">max(DCF/PE 中枢 × 0.50, 清算价值)</div>
-  </div>
-</div>
-
-如 safety-margin 判定不适用（<4分/数据不足/净利润为负/FCF持续为负），PRICE_RANGE_SECTION 传空字符串 ""。
-
-8. **管理层 HTML**: management-check 输出
-9. **逆向风险 HTML**: inversion-test 输出
-10. **全球对标 HTML**: global-benchmark 输出。不适用时传以下 HTML：
-<div style="padding:20px;text-align:center;color:var(--text-secondary);">
-该行业在全球范围内无直接可比上市公司，全球对标不适用。
-</div>
+7. **雷达图数据**: 各维度得分
+8. **买入价格 HTML**: 从 safety-margin 输出中提取三档买入价格，格式参考原文件
+9. **管理层 HTML**: management-check 输出
+10. **逆向风险 HTML**: inversion-test 输出
+11. **全球对标 HTML**: global-benchmark 输出（不适用时传占位 HTML）
 
 #### Step 5c: 调用报告生成器
 
-调用 `report-generator` Skill，将汇总数据传递给该 Skill 生成 HTML 报告。
+调用 `report-generator` Skill，将汇总数据传递给该 Skill 生成 HTML 报告。报告写入 `reports/<STOCK_CODE>-<YYYY-MM-DD>.html`。
+
+---
 
 ## 异常处理总则
 
 | 场景 | 处理 |
 |------|------|
 | 工具脚本执行失败 | 重试 1 次，仍失败则标记 missing |
-| 数据全部不可用 | 告知用户并终止 |
+| 数据全部不可用 | 告知用户并终止（这本身触发了 Gate 1 TOO-HARD） |
 | 用户中途改变意图 | 优雅切换模式，保存已有分析结果 |
-| 质量筛选 FAIL | 终止流程，告知原因 |
+| Gate 1 TOO-HARD | 产出拒绝报告（含研究路线图），终止 |
+| Gate 2 FAIL (+ IN-CIRCLE) | 产出质量拒绝报告，终止 |
+| Gate 2 FAIL (+ RESTRICTED) | 产出拒绝报告（含 Gate 1+2 依据），终止 |
+| RESTRICTED + Gate 2 PASS/CAUTION | 产出受限报告（含已知信息卡 + 研究路线图），终止 |
+| Gate 3 ABSURD | 产出估值拒绝报告（含观察清单建议），终止 |
 | 分析 Skill 返回内容过少 | 标注"数据有限，分析受限" |
+
+## 拒绝路径总结
+
+| 路径 | Gate 1 | Gate 2 | Gate 3 | 拒绝类型 | 产出 |
+|------|--------|--------|--------|---------|------|
+| A | TOO-HARD | — | — | TOO-HARD | 拒绝 + 研究路线图 |
+| B | RESTRICTED | FAIL | — | RESTRICTED | 拒绝 + 已知信息卡 + 路线图 |
+| C | RESTRICTED | PASS/CAUTION | — | RESTRICTED | 受限报告 + 已知信息卡 + 路线图 |
+| D | IN-CIRCLE | FAIL | — | NOT-QUALITY | 质量拒绝 |
+| E | IN-CIRCLE | PASS/CAUTION | ABSURD | TOO-EXPENSIVE | 估值拒绝 + 观察清单 |
+| F | IN-CIRCLE | PASS/CAUTION | REASONABLE/EXPENSIVE | — | 完整 HTML 报告 |
 
 ## 交互规范
 
@@ -227,4 +407,5 @@ python tools/industry_data.py <行业名称> --json
 2. **数据透明**: 所有结论引用具体数据支撑
 3. **不确定性诚实**: 不知道的事就说不知道
 4. **芒格语调**: 分析结论遵循芒格的表达风格——不模棱两可，不迎合用户
-5. **最终输出**: 报告生成后，在对话中给出摘要 + 报告文件路径
+5. **拒绝是成功**: 拒绝一家公司时用肯定的语气——"芒格不会投这个"，而非"系统无法分析"
+6. **最终输出**: 完整分析路径 → HTML 报告；拒绝路径 → Markdown 拒绝报告（对话中展示）
