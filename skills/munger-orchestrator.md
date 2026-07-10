@@ -190,9 +190,9 @@ python tools/industry_data.py <行业名称> --json
 
 | | Gate 1 = IN-CIRCLE | Gate 1 = RESTRICTED |
 |---|---|---|
-| **Gate 2 = PASS** | ✅ → Gate 3 | ⚠️ 受限报告 |
-| **Gate 2 = CAUTION** | ✅ → Gate 3 (标注风险) | ⚠️ 受限报告 |
-| **Gate 2 = FAIL** | 🚫 质量拒绝 | 🚫 质量拒绝 (含能力圈警告) |
+| **Gate 2 = PASS** | ✅ → Gate 3 | ⚠️ 受限报告（仅信息受限）|
+| **Gate 2 = CAUTION** | ✅ → Gate 3 (标注风险) | ⚠️ 受限报告（仅信息受限）|
+| **Gate 2 = FAIL** | 🚫 质量拒绝 | 🚫 双重问题：信息受限+质量FAIL |
 
 #### 各分支处理
 
@@ -221,7 +221,23 @@ python tools/industry_data.py <行业名称> --json
 
 展示拒绝报告。**流程终止。** 不提供"继续分析"的选项——质量 FAIL 的公司不值得花时间。
 
-**分支 3: RESTRICTED + 任何 Gate 2 结果 → 受限报告**
+**分支 3a: RESTRICTED + FAIL → 双重拒绝报告**
+
+```
+🚫 **双重门禁拒绝：信息受限 + 质量不达标**
+
+<股票名称> 有两个独立的问题：我们的理解受到限制，而且它的财务质量也不符合芒格的标准。
+```
+
+调用 `rejection-report` Skill：
+- `REJECTION_TYPE`: `RESTRICTED_WITH_FAIL`
+- `GATE_DATA`: circle-of-competence 输出
+- `ADDITIONAL_GATE_DATA`: quality-screen FAIL 输出
+- `KNOWN_INFO`: Phase 1 数据摘要
+
+展示拒绝报告。**流程终止。**
+
+**分支 3b: RESTRICTED + PASS/CAUTION → 受限报告**
 
 ```
 ⚠️ **受限分析**
@@ -343,10 +359,10 @@ python tools/industry_data.py <行业名称> --json
 **评分计算:** 综合评分 = Σ(维度得分 × 权重)
 
 评级映射：
-- 8-10: 强烈推荐
-- 6-8: 可以买入
-- 4-6: 继续观察
-- < 4: 回避
+- ≥ 8.0: 强烈推荐
+- ≥ 6.0 且 < 8.0: 可以买入
+- ≥ 4.0 且 < 6.0: 继续观察
+- < 4.0: 回避
 
 **Gate 3 标记处理:** 如果 `EXPENSIVE_WARNING = true`，在综合评分中不额外扣分，但在报告的一句话结论中明确提及"当前估值偏高"。
 
@@ -391,7 +407,7 @@ python tools/industry_data.py <行业名称> --json
 | 路径 | Gate 1 | Gate 2 | Gate 3 | 拒绝类型 | 产出 |
 |------|--------|--------|--------|---------|------|
 | A | TOO-HARD | — | — | TOO-HARD | 拒绝 + 研究路线图 |
-| B | RESTRICTED | FAIL | — | RESTRICTED | 拒绝 + 已知信息卡 + 路线图 |
+| B | RESTRICTED | FAIL | — | RESTRICTED_WITH_FAIL | 双重拒绝 + 已知信息卡 + 路线图 |
 | C | RESTRICTED | PASS/CAUTION | — | RESTRICTED | 受限报告 + 已知信息卡 + 路线图 |
 | D | IN-CIRCLE | FAIL | — | NOT-QUALITY | 质量拒绝 |
 | E | IN-CIRCLE | PASS/CAUTION | ABSURD | TOO-EXPENSIVE | 估值拒绝 + 观察清单 |

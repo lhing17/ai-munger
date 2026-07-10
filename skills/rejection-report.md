@@ -13,7 +13,7 @@ description: 芒格拒绝报告生成器 — 统一处理四种门禁拒绝（TO
 
 由编排器传递以下数据：
 
-- `REJECTION_TYPE`: 拒绝类型 — `TOO-HARD` (Gate 1) / `RESTRICTED` (Gate 1) / `NOT-QUALITY` (Gate 2) / `TOO-EXPENSIVE` (Gate 3)
+- `REJECTION_TYPE`: 拒绝类型 — `TOO-HARD` (Gate 1) / `RESTRICTED` (Gate 1) / `RESTRICTED_WITH_FAIL` (Gate 1+2) / `NOT-QUALITY` (Gate 2) / `TOO-EXPENSIVE` (Gate 3)
 - `STOCK_NAME`: 公司名称
 - `STOCK_CODE`: 股票代码
 - `GATE_DATA`: 触发拒绝的 Gate 的完整输出（circle-of-competence 或 quality-screen 或 valuation-gate 的判定结果）
@@ -89,6 +89,17 @@ description: 芒格拒绝报告生成器 — 统一处理四种门禁拒绝（TO
 
 **与 TOO-HARD 的区别：** RESTRICTED 的语气是"信息不够，但方向可行"；TOO-HARD 的语气是"这超出了我们的能力边界"。
 
+### 类型 2b: RESTRICTED_WITH_FAIL (Gate 1 = RESTRICTED + Gate 2 = FAIL)
+
+**一句话结论模板：**
+"这家公司有两个问题：我们的理解受到[具体限制]的限制，而且它的财务质量也达不到芒格的标准。两个红灯同时亮——回避。"
+
+**拒绝依据：** 展示 circle-of-competence 信息质量评分卡 + quality-screen 7 指标 FAIL 得分卡。明确标注："以下两个独立门禁都给出了否定判断。"
+
+**研究路线图：** 仅包含信息缺口相关的问题（3-4 条），但特别强调"在解决信息缺口之前，已发现的财务质量问题已足以构成排除理由。"
+
+**与 RESTRICTED 的区别：** RESTRICTED_WITH_FAIL 不暗示"方向可行"。双重否定 = 排除确定性更高。
+
 ### 类型 3: NOT-QUALITY (Gate 2)
 
 **一句话结论模板：**
@@ -118,6 +129,7 @@ description: 芒格拒绝报告生成器 — 统一处理四种门禁拒绝（TO
 |------|---------|
 | TOO-HARD | "我们有三个篮子：投、不投、太难。大部分东西都进了'太难'那个篮子。" |
 | RESTRICTED | "承认无知是智慧的开始。" |
+| RESTRICTED_WITH_FAIL | "如果一件事有两个独立的理由不做，那就真的不要做。" |
 | NOT-QUALITY | "以合理价格买伟大公司，比以便宜价格买烂公司好得多。" |
 | TOO-EXPENSIVE | "投资的第一条规则是不要亏钱。第二条规则是不要忘记第一条。" |
 | 通用 | "我们没有特别的优势去分析每一个行业、每一家公司。我们只在我们有优势的地方下注。" |
