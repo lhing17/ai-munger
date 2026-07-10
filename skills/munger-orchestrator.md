@@ -380,7 +380,7 @@ python tools/industry_data.py <行业名称> --json
 | 质量筛选 | quality-screen | 0-10 总分（已定义） |
 | 护城河宽度 | moat-analysis | 加权总分 (0-10)，见该 Skill 输出格式 |
 | 安全边际 | safety-margin | 编排器提取：从 safety-margin 输出的综合判断文字映射为数值 — "充足"→9分,"一般"→6分,"不足"→3分,"不存在"→1分,数据不足无法评估→5分(中性) |
-| 管理层质量 | management-check | 0-10 信任分（已定义：信任等级映射到数值） |
+| 管理层质量 | management-check | 0-10 信任分（该 Skill 原生输出 0-10 加权分，可直接使用。字母等级仅用于展示，不用于计算） |
 | 逆向风险 | inversion-test | 0-10 逆向安全分（已定义：直接传递） |
 | 全球对标 | global-benchmark | 0-10 对打分（如不适用则不参与计算） |
 
