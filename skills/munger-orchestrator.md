@@ -46,8 +46,7 @@ Phase 0: 意图识别
    ↓
 Phase 1: 数据收集（5 路并行）
    ↓
-Phase 1.5: Gate 1 — 能力圈审查 ← NEW
-   ├── TOO-HARD → 拒绝路径 → 终止
+Phase 1.5: Gate 1 — 能力圈审查   ├── TOO-HARD → 拒绝路径 → 终止
    ├── RESTRICTED → 标记，继续 Gate 2 → 拒绝路径
    └── IN-CIRCLE → 继续
    ↓
@@ -57,8 +56,7 @@ Phase 2: Gate 2 — 质量筛选
    ├── PASS/CAUTION (+ RESTRICTED) → 拒绝路径（受限报告）→ 终止
    └── PASS/CAUTION (+ IN-CIRCLE) → 继续
    ↓
-Phase 2.5: Gate 3 — 估值门禁 ← NEW
-   ├── ABSURD → 拒绝路径 → 终止
+Phase 2.5: Gate 3 — 估值门禁   ├── ABSURD → 拒绝路径 → 终止
    ├── EXPENSIVE → 继续（带警告标记）
    └── REASONABLE → 继续
    ↓
@@ -121,8 +119,7 @@ python tools/industry_data.py <行业名称> --json
 
 ---
 
-### Phase 1.5: Gate 1 — 能力圈审查 ← NEW
-
+### Phase 1.5: Gate 1 — 能力圈审查
 这是系统最重要的决策点。在数据收集完成后，首先回答芒格的第一问：**"我懂这个生意吗？"**
 
 #### Step 1.5a: 调用能力圈 Skill
@@ -242,8 +239,7 @@ python tools/industry_data.py <行业名称> --json
 
 ---
 
-### Phase 2.5: Gate 3 — 估值门禁 ← NEW
-
+### Phase 2.5: Gate 3 — 估值门禁
 **触发条件：** 仅当 Gate 1 = IN-CIRCLE 且 Gate 2 = PASS 或 CAUTION。
 
 从 Phase 1 数据中提取：
