@@ -52,23 +52,33 @@ description: 查理芒格投资分析编排器 — 混合模式对话管理、5 
 🔍 **开始分析 <股票名称> (<股票代码>)**
 
 我将按照查理芒格的分析框架，分以下步骤进行：
-1. 📡 收集数据（行情+财务+估值）
+1. 📡 收集数据（行情+财务+估值+管理层+行业）
 2. 🔢 质量筛选（7 指标去劣）
-3. 🏰 护城河分析 + 🛡️ 安全边际评估
-4. 📊 生成投资报告
+3. 🧠 四路分析（护城河 + 安全边际 + 管理层 + 逆向验证）
+4. 🌍 全球龙头对标
+5. 📊 生成投资报告
 
 预计需要 3-5 分钟...
 ```
 
 ### Phase 1: 数据收集（并行）
 
-调用 `a-share-data` Skill 获取三类数据（通过 Bash 并行执行）：
+调用 Bash 并行执行 5 路数据收集：
 
 ```bash
+# A股核心数据（3路）
 python tools/ashare_data.py quote <code> --json
 python tools/ashare_data.py financials <code> --json --period 年报
 python tools/ashare_data.py valuation <code> --json
+
+# 管理层/股东数据
+python tools/personnel_data.py full <code> --json
+
+# 行业数据
+python tools/industry_data.py <行业名称> --json
 ```
+
+注意：行业名称需要从公司的业务描述中推断（如 600519 → 白酒），或者先用 WebSearch 快速确认公司所属行业。
 
 然后调用 `financial-query` Skill 对关键数据进行交叉验证。
 
@@ -100,19 +110,30 @@ python tools/ashare_data.py valuation <code> --json
 
 ### Phase 3: 并行分析
 
-**同时**调用两个分析 Skill：
+**同时**调用 4 个分析 Skill：
 1. `moat-analysis` — 护城河分析
 2. `safety-margin` — 安全边际评估
+3. `management-check` — 管理层审查（新）
+4. `inversion-test` — 逆向风险验证（新）
 
-将 Phase 1-2 的数据和结论传递给这两个 Skill。
+将 Phase 1-2 的数据和结论传递给这 4 个 Skill。moat-analysis 可使用 industry_data 的行业均值做对标。
 
 ### Phase 4: 全球对标（按需触发）
 
-仅在以下情况触发：
+触发条件：
+- 通过 WebSearch 或常识判断该行业存在全球可比龙头
 - 用户明确要求全球对标
-- 行业内存在明显的全球龙头可对比
+- 典型可对标行业：消费（可口可乐）、科技（台积电）、汽车（丰田）、医药（辉瑞）、制造（卡特彼勒）
+- 通常不触发：中国独有行业（白酒、中药）、强政策管制行业（军工）
 
-如触发，调用 `global-benchmark` Skill（第二批才实现，第一批跳过此阶段）。
+**触发时：**
+1. 通过 WebSearch + 常识确定 1-3 个全球龙头股票代码
+2. 调用 `global_data.py` 获取对标数据
+3. 将 A 股数据 + 对标数据传递给 `global-benchmark` Skill
+
+**不触发时：**
+- 跳过该 Phase
+- 在 Phase 5 综合评分中 global-benchmark 权重归零，其余 5 维度按比例重分配（÷0.9）
 
 ### Phase 5: 报告生成
 
@@ -122,12 +143,16 @@ python tools/ashare_data.py valuation <code> --json
 
 | 维度 | 权重 | 得分来源 |
 |------|------|---------|
-| 质量筛选 | 20% | quality-screen 输出 |
-| 护城河宽度 | 25% | moat-analysis 输出 |
-| 安全边际 | 20% | safety-margin 输出 |
-| 管理层质量 | 15% | N/A (第二批) — 暂记 5 分 |
-| 逆向风险 | 10% | N/A (第二批) — 暂记 5 分 |
-| 全球对标 | 10% | N/A (第二批) — 暂记 5 分 |
+| 质量筛选 | 20% | quality-screen |
+| 护城河宽度 | 25% | moat-analysis |
+| 安全边际 | 20% | safety-margin |
+| 管理层质量 | 15% | management-check |
+| 逆向风险 | 10% | inversion-test |
+| 全球对标 | 10% | global-benchmark |
+
+**特殊情况:** global-benchmark 返回"不适用"时 → 权重归零，其余 5 维度按 ÷0.9 重分配权重。
+
+**评分计算:** 综合评分 = Σ(维度得分 × 权重) ÷ 10 × 10
 
 综合评分 = Σ(维度得分 × 权重) ÷ 10 × 10
 
@@ -148,6 +173,9 @@ python tools/ashare_data.py valuation <code> --json
 5. **分析模块 HTML**: 将每个分析 Skill 的输出格式化为 HTML 片段
 6. **图表数据**: 从财务数据中提取 5 年趋势数据（营收/净利润/ROE 数组）
 7. **雷达图数据**: ROE稳定性、盈利能力、财务健康、现金流质量、品牌溢价、护城河综合、安全边际各维度得分
+8. **管理层 HTML**: management-check 输出
+9. **逆向风险 HTML**: inversion-test 输出
+10. **全球对标 HTML**: global-benchmark 输出（不适用时省略）
 
 #### Step 5c: 调用报告生成器
 

@@ -31,7 +31,7 @@ ai-munger/
 - "分析一下 600519" / "帮我评估茅台"
 - "深度研究一下招商银行"
 
-深度分析流程：数据收集 → 质量筛选 → 护城河分析 + 安全边际 → HTML 报告
+深度分析流程：数据收集 → 质量筛选 → 四路并行分析（护城河+安全边际+管理层+逆向风险）→ 全球对标 → HTML 报告
 
 ## 核心 Skills
 
@@ -43,6 +43,9 @@ ai-munger/
 | `quality-screen` | 🧠 质量筛选 | 分析流程 Phase 2 |
 | `moat-analysis` | 🧠 护城河分析 | 分析流程 Phase 3 |
 | `safety-margin` | 🧠 安全边际评估 | 分析流程 Phase 3 |
+| `management-check` | 🧠 管理层审查 | 分析流程 Phase 3 |
+| `inversion-test` | 🧠 逆向风险验证 | 分析流程 Phase 3 |
+| `global-benchmark` | 🧠 全球龙头对标 | 分析流程 Phase 4 |
 | `report-generator` | 📄 报告生成 | 分析流程 Phase 5 |
 
 ## 数据脚本
@@ -61,6 +64,15 @@ python tools/ashare_data.py valuation 600519 --json
 
 # 搜索股票
 python tools/ashare_data.py search 茅台 --json
+
+# 全球对标数据
+python tools/global_data.py AAPL --json
+
+# 管理层/股东数据
+python tools/personnel_data.py full 600519 --json
+
+# 行业数据
+python tools/industry_data.py 白酒 --json
 ```
 
 ## 关键约束
